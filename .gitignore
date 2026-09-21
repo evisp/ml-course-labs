@@ -16,3 +16,4 @@ data/raw/
 .DS_Store
 Thumbs.db
 .vscode/settings.json
+week-*/solution.ipynb
