@@ -35,21 +35,32 @@ Each lab from Week 2 onwards starts from the table the previous week built, rebu
 
 ```python
 import sys
-sys.path.append("..")
+sys.path.insert(0, "..")
 from checkpoints import week_01
 
 orders = week_01()
 ```
 
+## Project 1 data
+
+Project 1 uses New York taxi trips from 2026. To download them here:
+
+```bash
+python data/download.py --taxi
+```
+
+The files land in `data/raw/taxi/`. Your team's own repository should download them itself: the [Project 1 brief](https://evisp.github.io/ml-course-umt/05-projects/project-1-pipeline/) has a short script for that.
+
 ## Structure
 
 | Path | Contents |
 |---|---|
-| `data/download.py` | Fetches the dataset. The data itself is never committed. |
+| `data/download.py` | Fetches the datasets. The data itself is never committed. |
 | `checkpoints.py` | Rebuilds each week's starting table from the raw data |
 | `week-NN/lab.ipynb` | The in-class notebook, with gaps |
 | `week-NN/solution.ipynb` | The complete, narrated version |
 
 ## Data
 
-[Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce), shared under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). Used here for non-commercial teaching.
+- [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce), shared under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). Used here for non-commercial teaching.
+- [New York City taxi trip records](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page), published by the NYC Taxi and Limousine Commission through NYC Open Data.

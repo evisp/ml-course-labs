@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """
-Download the Olist dataset used throughout the course.
+Download the datasets used in the course.
 
 Run from the repository root:
 
-    python data/download.py
+    python data/download.py            # Olist, used in the Block 1 labs
+    python data/download.py --taxi     # New York taxi trips, used in Project 1
 
-The files land in data/raw/olist/. Running it again is safe: it skips the
-download if all nine files are already there.
+Files land in data/raw/olist/ or data/raw/taxi/. Running it again is safe:
+nothing is downloaded if the files are already there.
 
-Source: Brazilian E-Commerce Public Dataset by Olist
-https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
-Licence: CC BY-NC-SA 4.0
+Sources and licences:
+    Olist: Brazilian E-Commerce Public Dataset by Olist, CC BY-NC-SA 4.0
+           https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
+    Taxi:  NYC Taxi and Limousine Commission trip records, NYC Open Data
+           https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
 """
 
 import argparse
@@ -22,12 +25,11 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-DEFAULT_URL = "https://github.com/evisp/ml-course-labs/releases/download/data-v1/olist.zip"
-
+RELEASES = "https://github.com/evisp/ml-course-labs/releases/download"
 ROOT = Path(__file__).resolve().parents[1]
-TARGET = ROOT / "data" / "raw" / "olist"
+RAW = ROOT / "data" / "raw"
 
-EXPECTED = [
+OLIST_FILES = [
     "olist_customers_dataset.csv",
     "olist_geolocation_dataset.csv",
     "olist_order_items_dataset.csv",
@@ -39,13 +41,16 @@ EXPECTED = [
     "product_category_name_translation.csv",
 ]
 
+TAXI_FILES = [
+    "yellow_tripdata_2026_sample.parquet",
+    "taxi_zone_lookup.csv",
+    "taxi_zones.zip",
+    "data_dictionary_trip_records_yellow.pdf",
+]
 
-def missing_files() -> list[str]:
-    return [name for name in EXPECTED if not (TARGET / name).exists()]
 
-
-def download(url: str, destination: Path) -> None:
-    print(f"Downloading {url}")
+def fetch(url: str, destination: Path) -> None:
+    print(f"Downloading {url.rsplit('/', 1)[-1]}")
     with urllib.request.urlopen(url) as response, open(destination, "wb") as out:
         total = int(response.headers.get("Content-Length", 0))
         done = 0
@@ -57,47 +62,63 @@ def download(url: str, destination: Path) -> None:
     print()
 
 
-def extract(archive: Path) -> None:
-    TARGET.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(archive) as zf:
-        for member in zf.infolist():
-            name = Path(member.filename).name          # flatten any folders inside the zip
-            if name in EXPECTED:
-                with zf.open(member) as src, open(TARGET / name, "wb") as dst:
-                    shutil.copyfileobj(src, dst)
+def get_olist(base: str, force: bool) -> list[Path]:
+    target = RAW / "olist"
+    expected = [target / name for name in OLIST_FILES]
+    if not force and all(p.exists() for p in expected):
+        return expected
+    target.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        archive = Path(tmp) / "olist.zip"
+        fetch(f"{base}/data-v1/olist.zip", archive)
+        with zipfile.ZipFile(archive) as zf:
+            for member in zf.infolist():
+                name = Path(member.filename).name           # flatten any folders inside the zip
+                if name in OLIST_FILES:
+                    with zf.open(member) as src, open(target / name, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+    return expected
+
+
+def get_taxi(base: str, force: bool) -> list[Path]:
+    target = RAW / "taxi"
+    expected = [target / name for name in TAXI_FILES] + [target / "taxi_zones" / "taxi_zones.shp"]
+    if not force and all(p.exists() for p in expected):
+        return expected
+    target.mkdir(parents=True, exist_ok=True)
+    for name in TAXI_FILES:
+        if force or not (target / name).exists():
+            fetch(f"{base}/data-v2/{name}", target / name)
+    with zipfile.ZipFile(target / "taxi_zones.zip") as zf:
+        zf.extractall(target)                                 # creates data/raw/taxi/taxi_zones/
+    return expected
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Download the Olist dataset.")
-    parser.add_argument("--url", default=DEFAULT_URL, help="where to fetch the zip from")
+    parser = argparse.ArgumentParser(description="Download the course datasets.")
+    parser.add_argument("--taxi", action="store_true", help="download the New York taxi data for Project 1")
     parser.add_argument("--force", action="store_true", help="download even if the files exist")
+    parser.add_argument("--base-url", default=RELEASES, help=argparse.SUPPRESS)
     args = parser.parse_args()
 
-    if not args.force and not missing_files():
-        print(f"Already here: {len(EXPECTED)} files in {TARGET.relative_to(ROOT)}")
-        return 0
-
-    with tempfile.TemporaryDirectory() as tmp:
-        archive = Path(tmp) / "olist.zip"
-        try:
-            download(args.url, archive)
-        except Exception as error:
-            print(f"Download failed: {error}", file=sys.stderr)
-            print("Check your connection, or ask in the course channel.", file=sys.stderr)
-            return 1
-        extract(archive)
-
-    still_missing = missing_files()
-    if still_missing:
-        print("These files were not found in the archive:", file=sys.stderr)
-        for name in still_missing:
-            print(f"  {name}", file=sys.stderr)
+    name, getter = ("taxi", get_taxi) if args.taxi else ("olist", get_olist)
+    try:
+        files = getter(args.base_url, args.force)
+    except Exception as error:
+        print(f"Download failed: {error}", file=sys.stderr)
+        print("Check your connection, or ask in the course channel.", file=sys.stderr)
         return 1
 
-    print(f"Done: {len(EXPECTED)} files in {TARGET.relative_to(ROOT)}")
-    for name in EXPECTED:
-        size = (TARGET / name).stat().st_size / 1e6
-        print(f"  {name:<42} {size:6.1f} MB")
+    missing = [p for p in files if not p.exists()]
+    if missing:
+        print("These files are missing after the download:", file=sys.stderr)
+        for p in missing:
+            print(f"  {p.relative_to(ROOT)}", file=sys.stderr)
+        return 1
+
+    print(f"Ready: {name} data in {files[0].parent.relative_to(ROOT)}")
+    for p in files:
+        print(f"  {str(p.relative_to(files[0].parent)):44} {p.stat().st_size / 1e6:7.1f} MB")
     return 0
 
 
