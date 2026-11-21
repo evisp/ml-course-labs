@@ -6,15 +6,19 @@ Run from the repository root:
 
     python data/download.py            # Olist, used in the Block 1 labs
     python data/download.py --taxi     # New York taxi trips, used in Project 1
+    python data/download.py --hotels   # hotel bookings, used in Block 2
 
-Files land in data/raw/olist/ or data/raw/taxi/. Running it again is safe:
-nothing is downloaded if the files are already there.
+Files land in data/raw/olist/, data/raw/taxi/ or data/raw/hotels/. Running it
+again is safe: nothing is downloaded if the files are already there.
 
 Sources and licences:
-    Olist: Brazilian E-Commerce Public Dataset by Olist, CC BY-NC-SA 4.0
-           https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
-    Taxi:  NYC Taxi and Limousine Commission trip records, NYC Open Data
-           https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+    Olist:  Brazilian E-Commerce Public Dataset by Olist, CC BY-NC-SA 4.0
+            https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
+    Taxi:   NYC Taxi and Limousine Commission trip records, NYC Open Data
+            https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+    Hotels: Antonio, Almeida and Nunes (2019), Hotel booking demand datasets,
+            Data in Brief 22, 41-49. CC BY 4.0
+            https://doi.org/10.1016/j.dib.2018.11.126
 """
 
 import argparse
@@ -39,6 +43,10 @@ OLIST_FILES = [
     "olist_products_dataset.csv",
     "olist_sellers_dataset.csv",
     "product_category_name_translation.csv",
+]
+
+HOTELS_FILES = [
+    "hotel_bookings.parquet",
 ]
 
 TAXI_FILES = [
@@ -94,14 +102,32 @@ def get_taxi(base: str, force: bool) -> list[Path]:
     return expected
 
 
+def get_hotels(base: str, force: bool) -> list[Path]:
+    target = RAW / "hotels"
+    expected = [target / name for name in HOTELS_FILES]
+    if not force and all(p.exists() for p in expected):
+        return expected
+    target.mkdir(parents=True, exist_ok=True)
+    for name in HOTELS_FILES:
+        if force or not (target / name).exists():
+            fetch(f"{base}/data-v3/{name}", target / name)
+    return expected
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Download the course datasets.")
     parser.add_argument("--taxi", action="store_true", help="download the New York taxi data for Project 1")
+    parser.add_argument("--hotels", action="store_true", help="download the hotel booking data for Block 2")
     parser.add_argument("--force", action="store_true", help="download even if the files exist")
     parser.add_argument("--base-url", default=RELEASES, help=argparse.SUPPRESS)
     args = parser.parse_args()
 
-    name, getter = ("taxi", get_taxi) if args.taxi else ("olist", get_olist)
+    if args.hotels:
+        name, getter = "hotels", get_hotels
+    elif args.taxi:
+        name, getter = "taxi", get_taxi
+    else:
+        name, getter = "olist", get_olist
     try:
         files = getter(args.base_url, args.force)
     except Exception as error:
