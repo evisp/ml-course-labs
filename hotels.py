@@ -48,9 +48,13 @@ ADR_RANGE = (1.0, 1000.0)
 #   assigned_room_type      is decided at check-in
 #   booking_changes         accumulates after the booking is made
 #   days_in_waiting_list    is known only once the wait is over
+#   required_car_parking_spaces  looks like a request made at booking, but of
+#       the 7,393 bookings that have one, exactly zero were cancelled, in every
+#       split. A space is assigned on arrival, and a cancelled booking never
+#       arrives. See section 3 of the dataset page.
 NOT_KNOWN_AT_BOOKING = [
     "reservation_status", "reservation_status_date", "assigned_room_type",
-    "booking_changes", "days_in_waiting_list",
+    "booking_changes", "days_in_waiting_list", "required_car_parking_spaces",
 ]
 
 # The columns every Block 2 lab starts from, so that each week compares like
@@ -59,9 +63,8 @@ AT_BOOKING_NUMERIC = [
     "lead_time", "stays_in_weekend_nights", "stays_in_week_nights",
     "total_nights", "adults", "children", "babies", "total_guests",
     "is_repeated_guest", "previous_cancellations",
-    "previous_bookings_not_canceled", "required_car_parking_spaces",
-    "total_of_special_requests", "arrival_month", "arrival_week",
-    "arrival_day",
+    "previous_bookings_not_canceled", "total_of_special_requests",
+    "arrival_month", "arrival_week", "arrival_day",
 ]
 AT_BOOKING_CATEGORICAL = [
     "hotel", "meal", "country", "market_segment", "distribution_channel",
